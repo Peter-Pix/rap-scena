@@ -14,9 +14,10 @@ interface DetailViewProps {
   allContent: ContentFile[];
   onBack: () => void;
   onNavigate: (slug: string) => void;
+  onMarkDownloaded?: (slug: string) => void;
 }
 
-export function DetailView({ metadata, content, rawContent, allContent, onBack, onNavigate }: DetailViewProps) {
+export function DetailView({ metadata, content, rawContent, allContent, onBack, onNavigate, onMarkDownloaded }: DetailViewProps) {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
 
   const related = useMemo(() => {
@@ -42,6 +43,9 @@ export function DetailView({ metadata, content, rawContent, allContent, onBack, 
     a.download = `${metadata.slug}.mdx`;
     a.click();
     URL.revokeObjectURL(url);
+    if (onMarkDownloaded) {
+      onMarkDownloaded(metadata.slug);
+    }
   };
 
 

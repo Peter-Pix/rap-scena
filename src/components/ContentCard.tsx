@@ -1,13 +1,15 @@
 import { motion } from 'motion/react';
 import { ContentMetadata } from '../types';
-import { User, Disc, Building2, Hash, FileText, Music } from 'lucide-react';
+import { User, Disc, Building2, Hash, FileText, Music, CheckSquare, Square } from 'lucide-react';
 
 interface ContentCardProps {
   item: ContentMetadata;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
   onClick: () => void;
 }
 
-export function ContentCard({ item, onClick }: ContentCardProps) {
+export function ContentCard({ item, isSelected, onToggleSelect, onClick }: ContentCardProps) {
   const Icon = {
     raperi: User,
     alba: Disc,
@@ -24,8 +26,21 @@ export function ContentCard({ item, onClick }: ContentCardProps) {
       onClick={onClick}
     >
       <div className="flex justify-between items-start mb-4">
-        <div className="p-2 bg-zinc-800 rounded-lg group-hover:bg-zinc-700 transition-colors">
-          <Icon size={20} className="text-zinc-400 group-hover:text-white" />
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-zinc-800 rounded-lg group-hover:bg-zinc-700 transition-colors">
+            <Icon size={20} className="text-zinc-400 group-hover:text-white" />
+          </div>
+          {onToggleSelect && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleSelect();
+              }}
+              className="text-zinc-500 hover:text-white transition-colors"
+            >
+              {isSelected ? <CheckSquare size={20} className="text-white" /> : <Square size={20} />}
+            </button>
+          )}
         </div>
         <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">
           {item.type}

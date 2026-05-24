@@ -103,20 +103,90 @@ app.post("/api/generate", async (req, res) => {
 Vždy používej Google Search grounding k ověření faktů (datum narození, občanské jméno, diskografie, labely atd.).
 Všechny informace musí být aktuální.
 
-Odpověz POUZE ve formátu MDX podle následující šablony pro typ ${type}:
+POVINNÁ FORMA VČETNĚ UVOZOVEK. VŠECHNY SLUGY MALÝMI PÍSMENY A BEZ MEZER. Slugy tvoř pouze pomocí malých písmen a pomlček (\`-\`), žádné mezery. Pole musí být camelCase. Všechna \`description\` pole jsou povinná a nesmí být prázdná string (""). Pod blokem \`---\` musí být vždy alespoň jeden odstavec textu.
 
-Šablony:
-- raperi: title, slug, realName, born, active, label, genre (pole), description (max 200 zn.), publishedAt (dnes), text, diskografie.
-- alba: title, slug, rapper, rapperSlug, label, year (číslo), genre, description, tracklist (pole), publishedAt (dnes), recenze/popis.
-- skladby: title, slug (nazev-tracku-rapper), rapper, rapperSlug, album, albumSlug, year, genre, description, publishedAt (dnes), kontext, zvuk, téma.
-- labely: title, slug, founded, location, description, artists (slugy), publishedAt (dnes), historie, umělci.
-- zanry: title, slug, origin, description, publishedAt (dnes), původ, charakteristika, česká scéna.
-- clanky: title, slug, category, description, publishedAt (dnes), tags, text.
+Odpověz POUZE ve formátu MDX podle následující šablony. NEPŘIDÁVEJ žádné markdown bloky (nezačínej \`\`\`mdx). Odpověz JENOM čistým textem frontmatteru (--- ... ---) a následným textem.
 
-Důležité:
-- publishedAt nastav na dnešní datum: ${new Date().toISOString().split('T')[0]}.
-- Slug musí být URL safe (malá písmena, pomlčky).
-- Generuj POUZE čisté MDX, žádné kecy okolo, žádné markdown code blocky (takže nezačínej \`\`\`mdx).`;
+# ŠABLONA PRO TYP: raperi
+title: "Jméno Rappera" (povinné)
+slug: "jmeno-rappera" (povinné, název souboru bez .mdx, malá písmena a pomlčky)
+realName: "Občanské jméno" (volitelné)
+born: "1995" (volitelné)
+active: "2015–současnost" (volitelné)
+label: "Název labelu" (volitelné)
+genre: ["drill", "trap"] (volitelné, pole slugů žánrů)
+description: "Stručný popis rappera, max 200 znaků. Tohle jde do meta description a schema.org." (povinné, min 10 znaků)
+image: "/images/raperi/jmeno.jpg" (volitelné)
+featured: true (volitelné)
+publishedAt: "${new Date().toISOString().split('T')[0]}" (povinné, formát YYYY-MM-DD, V UVOZOVKÁCH)
+updatedAt: "2024-06-01" (volitelné)
+relatedRappers: ["slug-1", "slug-2"] (volitelné, slugy)
+relatedAlbums: ["slug-alba"] (volitelné)
+
+# ŠABLONA PRO TYP: alba
+title: "Název Alba" (povinné)
+slug: "nazev-alba" (povinné)
+rapper: "Jméno Rappera" (povinné, display name)
+rapperSlug: "jmeno-rappera" (povinné, slug rappera pro linking)
+label: "Název labelu" (volitelné)
+labelSlug: "slug-labelu" (volitelné)
+year: 2024 (povinné, NUMBER - BEZ UVOZOVEK!)
+genre: ["drill", "trap"] (volitelné)
+description: "Stručný popis alba." (povinné)
+image: "/images/alba/cover.jpg" (volitelné)
+tracklist: (volitelné, odřádkované pole např: \n  - "Track 1"\n  - "Track 2")
+rating: 8.5 (volitelné, NUMBER)
+publishedAt: "${new Date().toISOString().split('T')[0]}" (povinné)
+
+# ŠABLONA PRO TYP: labely
+title: "Název Labelu" (povinné)
+slug: "nazev-labelu" (povinné)
+founded: "2014" (volitelné)
+location: "Praha" (volitelné)
+description: "Popis labelu." (povinné)
+image: "/images/labely/logo.jpg" (volitelné)
+artists: ["slug-rappera", "dalsi"] (volitelné, slugy)
+publishedAt: "${new Date().toISOString().split('T')[0]}" (povinné)
+
+# ŠABLONA PRO TYP: zanry
+title: "Název Žánru" (povinné)
+slug: "nazev-zanru" (povinné)
+origin: "Chicago, USA (2010s)" (volitelné)
+description: "Popis žánru." (povinné)
+image: "/images/zanry/zanr.jpg" (volitelné)
+publishedAt: "${new Date().toISOString().split('T')[0]}" (povinné)
+
+# ŠABLONA PRO TYP: clanky
+title: "Název článku" (povinné)
+slug: "nazev-clanku" (povinné)
+category: "Analýza" (povinné - Analýza/Recenze/Novinky/Profil)
+description: "Popis článku." (povinné)
+image: "/images/clanky/cover.jpg" (volitelné)
+author: "redakce" (volitelné)
+featured: true (volitelné)
+publishedAt: "${new Date().toISOString().split('T')[0]}" (povinné)
+tags: ["milion-plus", "drill"] (volitelné)
+
+# ŠABLONA PRO TYP: skladby
+title: "Název skladby" (povinné)
+slug: "nazev-skladby-rapper" (povinné - musí být globálně unikátní, konvence: nazev-tracku-rapper)
+rapper: "Jméno rappera" (povinné)
+rapperSlug: "jmeno-rappera" (povinné)
+features: ["slug1"] (volitelné, slugy featů)
+featuresNames: ["Jméno1"] (volitelné)
+album: "Název alba" (volitelné)
+albumSlug: "nazev-alba" (volitelné)
+year: 2019 (volitelné, NUMBER BEZ UVOZOVEK)
+genre: ["drill", "trap"] (volitelné)
+duration: "3:42" (volitelné)
+trackNumber: 2 (volitelné)
+producers: ["slug1"] (volitelné)
+producersNames: ["Jméno"] (volitelné)
+description: "Stručný popis." (povinné)
+image: "/images/skladby/cover.jpg" (volitelné)
+publishedAt: "${new Date().toISOString().split('T')[0]}" (povinné)
+
+Využívej data specifická pro daný typ z instrukcí výše, ale vracej to pouze pokud uživatelův typ odpovídá (\`${type}\`).`;
 
     if (provider === 'ollama') {
       const selectedModel = model || 'llama3';

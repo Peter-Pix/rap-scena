@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { getAllContent } from './lib/content';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
+import { getAllContent, formatMdxForDownload } from './lib/content';
 import { ContentFile, ContentMetadata } from './types';
 import { ContentCard } from './components/ContentCard';
 import { DetailView } from './components/DetailView';
@@ -17,6 +19,52 @@ export default function App() {
   const [isCreatorOpen, setIsCreatorOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [downloadStateFilter, setDownloadStateFilter] = useState<'all' | 'downloaded' | 'new'>('all');
+  const [selectedSlugs, setSelectedSlugs] = useState<Set<string>>(new Set());
+  const [downloadedSlugs, setDownloadedSlugs] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('downloaded_slugs');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch (e) {
+      return new Set();
+    }
+  });
+
+  const handleToggleSelect = (slug: string) => {
+    const next = new Set(selectedSlugs);
+    if (next.has(slug)) next.delete(slug);
+    else next.add(slug);
+    setSelectedSlugs(next);
+  };
+
+  const handleBulkDownload = async (slugsToDownload: Set<string>) => {
+    if (slugsToDownload.size === 0) return;
+    
+    const files = content.filter(c => slugsToDownload.has(c.metadata.slug));
+    
+    if (files.length === 1) {
+      const file = files[0];
+      const formattedMdx = formatMdxForDownload(file.metadata, file.content);
+      const blob = new Blob([formattedMdx], { type: 'text/markdown' });
+      saveAs(blob, `${file.metadata.slug}.mdx`);
+    } else {
+      const zip = new JSZip();
+      files.forEach(file => {
+        const formattedMdx = formatMdxForDownload(file.metadata, file.content);
+        zip.file(`${file.metadata.type}/${file.metadata.slug}.mdx`, formattedMdx);
+      });
+      const contentZip = await zip.generateAsync({ type: "blob" });
+      saveAs(contentZip, "rapscena-export.zip");
+    }
+
+    const nextDownloaded = new Set(downloadedSlugs);
+    slugsToDownload.forEach(s => nextDownloaded.add(s));
+    setDownloadedSlugs(nextDownloaded);
+    localStorage.setItem('downloaded_slugs', JSON.stringify(Array.from(nextDownloaded)));
+    
+    setSelectedSlugs(new Set());
+  };
 
   const load = async () => {
     setLoading(true);
@@ -42,9 +90,17 @@ export default function App() {
       const matchesTab = activeTab === 'all' || type === activeTab;
       const matchesSearch = item.metadata.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             item.metadata.description.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesTab && matchesSearch;
+      
+      let matchesDownload = true;
+      if (downloadStateFilter === 'downloaded') {
+        matchesDownload = downloadedSlugs.has(item.metadata.slug);
+      } else if (downloadStateFilter === 'new') {
+        matchesDownload = !downloadedSlugs.has(item.metadata.slug);
+      }
+      
+      return matchesTab && matchesSearch && matchesDownload;
     });
-  }, [content, activeTab, searchQuery]);
+  }, [content, activeTab, searchQuery, downloadStateFilter, downloadedSlugs]);
 
   const selectedItem = useMemo(() => {
     return content.find(item => item.metadata.slug === selectedSlug);
@@ -128,6 +184,12 @@ export default function App() {
               allContent={content}
               onBack={() => setSelectedSlug(null)}
               onNavigate={(slug) => setSelectedSlug(slug)}
+              onMarkDownloaded={(slug) => {
+                const next = new Set(downloadedSlugs);
+                next.add(slug);
+                setDownloadedSlugs(next);
+                localStorage.setItem('downloaded_slugs', JSON.stringify(Array.from(next)));
+              }}
             />
           ) : (
             <motion.div
@@ -161,12 +223,64 @@ export default function App() {
                 ))}
               </div>
 
+              <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8 bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800">
+                <div className="flex gap-2 items-center">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mr-2">Stav</span>
+                  {[
+                    { id: 'all', label: 'Vše' },
+                    { id: 'new', label: 'Nové' },
+                    { id: 'downloaded', label: 'Stažené' }
+                  ].map(f => (
+                    <button 
+                      key={f.id}
+                      onClick={() => setDownloadStateFilter(f.id as any)}
+                      className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
+                        downloadStateFilter === f.id ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+                
+                <div className="flex gap-2 items-center flex-wrap">
+                  <button 
+                    onClick={() => setSelectedSlugs(new Set(filteredContent.map(i => i.metadata.slug)))}
+                    className="text-xs text-zinc-400 hover:text-white px-3"
+                  >
+                    Vybrat vše
+                  </button>
+                  <button 
+                    onClick={() => setSelectedSlugs(new Set())}
+                    className="text-xs text-zinc-400 hover:text-white px-3"
+                  >
+                    Zrušit výběr
+                  </button>
+                  <button
+                    onClick={() => handleBulkDownload(new Set(filteredContent.map(i => i.metadata.slug)))}
+                    className="flex items-center gap-2 bg-zinc-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-zinc-700 transition"
+                  >
+                    Stáhnout vše ({filteredContent.length})
+                  </button>
+                  {selectedSlugs.size > 0 && (
+                    <button
+                      onClick={() => handleBulkDownload(selectedSlugs)}
+                      className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-lg text-xs font-bold hover:bg-zinc-200 transition"
+                    >
+                      Stáhnout vybrané ({selectedSlugs.size})
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {filteredContent.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredContent.map((item) => (
                     <ContentCard
                       key={item.metadata.slug}
                       item={item.metadata}
+                      isSelected={selectedSlugs.has(item.metadata.slug)}
+                      onToggleSelect={() => handleToggleSelect(item.metadata.slug)}
                       onClick={() => setSelectedSlug(item.metadata.slug)}
                     />
                   ))}
